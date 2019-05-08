@@ -23,9 +23,9 @@ void test_thread_pool_sanity(int numThreads) {
 
 
 // test my thread pool
-int main() {
-    // arg is num of threads
-    test_thread_pool_sanity(5);
-
-    return 0;
-}
+//int main() {
+//    // arg is num of threads
+//    test_thread_pool_sanity(5);
+//
+//    return 0;
+//}
