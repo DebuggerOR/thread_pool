@@ -13,21 +13,21 @@
 #include <string.h>
 
 
-typedef enum { RUNNING, FORCE_STOP, WAIT_STOP } state;
+typedef enum { RUNNING, WAIT_RUNNING, WAIT_ALL } state;
 
 
-typedef struct task {
-    void (*func)(void *);
+typedef struct {
     void *args;
+    void (*func)(void *);
 } Task;
 
-typedef struct thread_pool {
-    pthread_t *threads;
-    OSQueue *queue;
-    int numThreads;
-    pthread_mutex_t lock;
-    pthread_cond_t notify;
+typedef struct {
+    int threadNum;
     state state;
+    OSQueue *queue;
+    pthread_t *threads;
+    pthread_mutex_t mutex;
+    pthread_cond_t condition;
 } ThreadPool;
 
 
