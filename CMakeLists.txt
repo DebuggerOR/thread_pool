@@ -5,4 +5,5 @@ set(CMAKE_C_STANDARD 99)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
 
-add_executable(os4 osqueue.c test.c osqueue.h threadPool.h threadPool.c better_test.c)
+add_executable(os4 osqueue.c test.c osqueue.h threadPool.h threadPool.c
+        better_test.c test2.c)

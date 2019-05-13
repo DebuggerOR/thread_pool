@@ -5,16 +5,9 @@
 #include "threadPool.h"
 
 
-// the function gets pointer to thread pool
-// it displays error, frees thread pool if relevant and exits
-void sys_error(ThreadPool* tp) {
+// the function displays error message and exits
+void sys_error() {
     write(2, "Error in system call\n", strlen("Error in system call\n"));
-
-    // free thread pool if not null
-    if(tp != NULL){
-        free(tp);
-    }
-
     exit(-1);
 }
 
@@ -24,7 +17,7 @@ static void *exec(void *x) {
     // try to convert to thread pool
     ThreadPool *tp = (ThreadPool *) x;
     if (tp == NULL) {
-        sys_error(NULL);
+        sys_error();
     }
 
     // loop's conditions
@@ -36,24 +29,27 @@ static void *exec(void *x) {
     while (isRunning || (isWaitToAll && isQueueNotEmpty)) {
         // lock thread pool's mutex
         if(pthread_mutex_lock(&(tp->mutex)) != 0){
-            sys_error(tp);
+            sys_error();
         }
 
         // block on condition
         while (tp->state == RUNNING && osIsQueueEmpty(tp->queue)) {
-            pthread_cond_wait(&(tp->condition), &(tp->mutex));
+            if(pthread_cond_wait(&(tp->condition), &(tp->mutex)) != 0) {
+                sys_error();
+            }
         }
 
         // dequeue task from tasks' queue
         Task *task = (Task *) osDequeue(tp->queue);
-        if (task != NULL) {
-            ((task->func))(task->args);
-            //free(task);
-        }
 
         // lock thread pool's mutex
         if(pthread_mutex_unlock(&(tp->mutex)) != 0){
             sys_error(tp);
+        }
+
+        // do task
+        if (task != NULL) {
+            ((task->func))(task->args);
         }
 
         // update loop condition vars
@@ -77,7 +73,7 @@ ThreadPool *tpCreate(int threadNum) {
     // else try to create thread pool
     ThreadPool *tp = (ThreadPool *) malloc(sizeof(ThreadPool));
     if (tp == NULL) {
-        sys_error(NULL);
+        sys_error();
     }
 
     // set thread pool's fields
@@ -85,21 +81,24 @@ ThreadPool *tpCreate(int threadNum) {
     tp->threadNum = threadNum;
     tp->queue = osCreateQueue();
 
-    // try to init condition
-    if (pthread_cond_init(&(tp->condition), NULL) != 0) {
-        sys_error(NULL);
-    }
-
     // try to init mutex
     if (pthread_mutex_init(&(tp->mutex), NULL) != 0) {
-        sys_error(NULL);
+        free(tp);
+        sys_error();
+    }
+
+    // try to init condition
+    if (pthread_cond_init(&(tp->condition), NULL) != 0) {
+        free(tp);
+        sys_error();
     }
 
     // try to alloc threads
     int threadsSize = sizeof(pthread_t)*(size_t) threadNum;
     tp->threads = (pthread_t *) malloc(threadsSize);
     if (tp->threads == NULL) {
-        sys_error(tp);
+        free(tp);
+        sys_error();
     }
 
     // try to create threads
@@ -107,7 +106,7 @@ ThreadPool *tpCreate(int threadNum) {
     for (i = 0; i < threadNum; i++) {
         if (pthread_create(&(tp->threads[i]), NULL, exec, (void *) tp) != 0) {
             tpDestroy(tp, 0);
-            sys_error(NULL);
+            sys_error();
         }
     }
 
@@ -118,6 +117,11 @@ ThreadPool *tpCreate(int threadNum) {
 // the function gets pointer to thread pool and shouldWaitForTasks
 // it updates thread pool's state according to shouldWaitForTasks and frees all
 void tpDestroy(ThreadPool *tp, int shouldWaitForTasks) {
+    // case destroy called already
+    if(tp->state != RUNNING) {
+        return;
+    }
+
     // lock thread pool mutex
     if(pthread_mutex_lock(&(tp->mutex)) != 0){
         sys_error(tp);
@@ -125,15 +129,14 @@ void tpDestroy(ThreadPool *tp, int shouldWaitForTasks) {
 
     // case shouldWaitForTasks = 0 wait only to running tasks
     if (shouldWaitForTasks == 0) {
+        // free tasks in queue
+        while(!osIsQueueEmpty(tp->queue)){
+            free(osDequeue(tp->queue));
+        }
         tp->state = WAIT_RUNNING;
         // case shouldWaitForTasks != 0 wait to tasks in queue too
     } else {
         tp->state = WAIT_ALL;
-    }
-
-    // unblock all threads that block on condition
-    if(pthread_cond_broadcast(&(tp->condition)) != 0){
-        sys_error(tp);
     }
 
     // unlock thread pool mutex
@@ -141,23 +144,29 @@ void tpDestroy(ThreadPool *tp, int shouldWaitForTasks) {
         sys_error(tp);
     }
 
+    // unblock all threads that block on condition
+    if(pthread_cond_broadcast(&(tp->condition)) != 0){
+        sys_error(tp);
+    }
+
     // join all threads
     int i;
     for (i = 0; i < tp->threadNum; i++) {
-        pthread_join(tp->threads[i], NULL);
-    }
-
-    // free all tasks in queue
-    while (!osIsQueueEmpty(tp->queue)) {
-        free(osDequeue(tp->queue));
+        if(pthread_join(tp->threads[i], NULL) != 0){
+            sys_error();
+        }
     }
 
     // free all
     free(tp->threads);
     osDestroyQueue(tp->queue);
 
-    pthread_mutex_destroy(&(tp->mutex));
-    pthread_cond_destroy(&(tp->condition));
+    if(pthread_mutex_destroy(&(tp->mutex)) != 0){
+        sys_error();
+    }
+    if(pthread_cond_destroy(&(tp->condition)) != 0){
+        sys_error();
+    }
 
     free(tp);
 }
@@ -174,7 +183,7 @@ int tpInsertTask(ThreadPool *tp, void (*computeFunc)(void *), void *args) {
     // try to alloc task
     Task *task = (Task *) malloc(sizeof(Task));
     if (task == NULL) {
-        sys_error(NULL);
+        sys_error();
     }
 
     // set task's func and param
@@ -183,7 +192,7 @@ int tpInsertTask(ThreadPool *tp, void (*computeFunc)(void *), void *args) {
 
     // lock thread pool's mutex
     if(pthread_mutex_lock(&(tp->mutex)) != 0){
-        sys_error(tp);
+        sys_error();
     }
 
     // insert task to queue
@@ -191,12 +200,12 @@ int tpInsertTask(ThreadPool *tp, void (*computeFunc)(void *), void *args) {
 
     // signal that queue isn't empty
     if(pthread_cond_broadcast(&(tp->condition)) != 0){
-        sys_error(tp);
+        sys_error();
     }
 
     // unlock thread pool's mutex
     if(pthread_mutex_unlock(&(tp->mutex)) != 0){
-        sys_error(tp);
+        sys_error();
     }
 
     return 0;

@@ -25,9 +25,15 @@ void test_thread_pool_sanity(int numThreads) {
 //test my thread pool
 
 
-int main() {
-    // arg is num of threads
-    test_thread_pool_sanity(5);
-
-    return 0;
-}
+//int main() {
+//    // arg is num of threads
+//    //test_thread_pool_sanity(5);
+//
+//    ThreadPool *tp = tpCreate(3);
+//    tpDestroy(tp, 0);
+//    //free(tp);
+//    tp->state = 2;
+//    tpDestroy(tp, 0);
+//
+//    return 0;
+//}
