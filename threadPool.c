@@ -18,8 +18,7 @@ static void *exec(void *x) {
     // try to convert to thread pool
     ThreadPool *tp = (ThreadPool *) x;
     if (tp == NULL) {
-        write(2, "Error in system call\n", strlen("Error in system call\n"));
-        exit(-1);
+        sys_error();
     }
 
     // loop's conditions
