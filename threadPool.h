@@ -8,12 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <string.h>
 #include <unistd.h>
 #include "osqueue.h"
-#include <string.h>
 
 
-typedef enum { RUNNING, WAIT_RUNNING, WAIT_ALL } state;
+typedef enum { ONLINE, OFFLINE } state;
 
 
 typedef struct {
@@ -23,11 +23,11 @@ typedef struct {
 
 typedef struct {
     int threadNum;
-    state state;
     OSQueue *queue;
     pthread_t *threads;
     pthread_mutex_t mutex;
     pthread_cond_t condition;
+    state state;
 } ThreadPool;
 
 
@@ -35,31 +35,10 @@ typedef struct {
 ThreadPool *tpCreate(int threadNum);
 
 // insert task with args to the thread pool
-int tpInsertTask(ThreadPool *pool, void (*computeFunc)(void *), void *param);
+int tpInsertTask(ThreadPool *tp, void (*computeFunc)(void *), void *args);
 
 // destroy the thread pool
-void tpDestroy(ThreadPool *pool, int shouldWaitForTasks);
+void tpDestroy(ThreadPool *tp, int shouldWaitForTasks);
 
 
 #endif
-
-
-
-//#ifndef __THREAD_POOL__
-//#define __THREAD_POOL__
-//
-//typedef struct thread_pool
-//{
-// //The field x is here because a struct without fields
-// //doesn't compile. Remove it once you add fields of your own
-// int x;
-// //TODO - FILL THIS WITH YOUR FIELDS
-//}ThreadPool;
-//
-//ThreadPool* tpCreate(int numOfThreads);
-//
-//void tpDestroy(ThreadPool* threadPool, int shouldWaitForTasks);
-//
-//int tpInsertTask(ThreadPool* threadPool, void (*computeFunc) (void *), void* param);
-//
-//#endif
