@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
-project(os4 C)
+project(thread_pool C)
 
 set(CMAKE_C_STANDARD 99)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
 
-add_executable(os4 osqueue.c test.c osqueue.h
-        test1.c test2.c test1.c test3.c test4.c threadPool.c)
+add_executable(thread_pool osqueue.c osqueue.h strange_test.c my_test.c threadPool.c)
