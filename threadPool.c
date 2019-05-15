@@ -1,7 +1,4 @@
 
-// fogler ori
-// 318732484
-
 #include "threadPool.h"
 
 
